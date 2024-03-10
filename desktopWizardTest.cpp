@@ -4,19 +4,15 @@
 #include "framework.h"
 #include "desktopWizardTest.h"
 
-#include <windows.h>
-#include <objidl.h>
-#include <gdiplus.h>
-using namespace Gdiplus;
-#pragma comment (lib,"Gdiplus.lib")
+// -------------- ownlibs including --------------
+#include "drawing.h"
+#include "winsockWrp.h"
 
-VOID OnPaint(HDC hdc);
-VOID OnPaint(HDC hdc, INT x1, INT y1, INT x2, INT y2);
-VOID drawDot(HDC hdc, INT x, INT y);
-int GetRandom(int min, int max)
-{
-    return min + (int)(rand() * (max - min + 1.0) / (1.0 + RAND_MAX));
-}
+
+// -------------- win32api define --------------
+// button id definition
+#define SEND_BUTTON_ID 1
+
 
 #define MAX_LOADSTRING 100
 
@@ -41,10 +37,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // TODO: ここにコードを挿入してください。
 
+    // --------------------- GDIpFuncs ---------------------
     GdiplusStartupInput gdiplusStartupInput;
     ULONG_PTR           gdiplusToken;
     // Initialize GDI+.
     GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
+    // --------------------- wsockFuncs ---------------------
+    //SOCKET s;
+    //initWsock(s);
+
 
     // グローバル文字列を初期化する
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -144,21 +146,26 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 bool isPressing = false;
 int timerCnt = 0;
+SOCKET s;
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_CREATE:
+        // --------------------- wsockFuncs ---------------------
+        printWsockStatus(hWnd, initWsock(s));
+
+        // --------------------- win32apiFuncs ---------------------
         SetTimer(hWnd, 1, 10, NULL);
-        /*CreateWindow(
+        CreateWindow(
             L"BUTTON",
-            L"OK",
+            L"send",
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-            10, 10, 100, 25,
+            10, 60, 100, 25,
             hWnd,
-            NULL,
+            (HMENU)SEND_BUTTON_ID,
             (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE),
-            NULL);*/
+            NULL);
         break;
     case WM_LBUTTONDOWN:
         {
@@ -177,8 +184,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = GetDC(hWnd);
             CHAR chStr[128];
-            wsprintf((LPWSTR)chStr, L"drawing: %d, %d, \npressing: %d", LOWORD(lParam), HIWORD(lParam), isPressing);
-            TextOut(hdc, 10, 10, (LPWSTR)chStr, sizeof(chStr));
+            wsprintf((LPWSTR)chStr, L"mouse at: %d, %d, \npressing: %d", LOWORD(lParam), HIWORD(lParam), isPressing);
+            TextOut(hdc, 10, 30, (LPWSTR)chStr, sizeof(chStr));
 
             if (isPressing) {
                 drawDot(hdc, LOWORD(lParam), HIWORD(lParam));
@@ -206,6 +213,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // 選択されたメニューの解析:
             switch (wmId)
             {
+            case SEND_BUTTON_ID:
+                send(s, "hoge", sizeof("hoge"), 0);
+                break;
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
@@ -255,25 +265,4 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     }
     return (INT_PTR)FALSE;
-}
-
-VOID OnPaint(HDC hdc)
-{
-    Graphics graphics(hdc);
-    Pen      pen(Color(255, 0, 0, 255));
-    graphics.DrawLine(&pen, 10, 10, 200, 100);
-
-}
-VOID OnPaint(HDC hdc, INT x1, INT y1, INT x2, INT y2)
-{
-    Graphics graphics(hdc);
-    Pen      pen(Color(255, 0, 0, 255));
-    graphics.DrawLine(&pen, x1, y1, x2, y2);
-}
-
-VOID drawDot(HDC hdc, INT x, INT y)
-{
-    Graphics graphics(hdc);
-    Pen      pen(Color(255, 0, 0, 255));
-    graphics.DrawRectangle(&pen, x, y, 1, 1);
 }
