@@ -147,6 +147,10 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 bool isPressing = false;
 int timerCnt = 0;
 SOCKET s;
+char buf[32];
+unsigned int    threadID;
+rcvDataStr		myrcvData;
+HANDLE rcvFncHd = 0;
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
@@ -154,6 +158,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
         // --------------------- wsockFuncs ---------------------
         printWsockStatus(hWnd, initWsock(s));
+        memset(buf, 0, sizeof(buf));
+        rcvStopFlag = FALSE;
+        myrcvData = { s, buf, sizeof(buf) };
+        rcvFncHd = (HANDLE)_beginthreadex(NULL, 0, rcvFunc, &myrcvData, 0, &threadID);
+
 
         // --------------------- win32apiFuncs ---------------------
         SetTimer(hWnd, 1, 10, NULL);
@@ -203,6 +212,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         
         wsprintf((LPWSTR)chStr, L"timerCnt: %d", timerCnt++);
         TextOut(hdc, 10, 250, (LPWSTR)chStr, sizeof(chStr));
+        
+        //(void)wcstombs_s(NULL, (wchar_t*)chStr, (size_t)sizeof(buf), (const char*)buf, 32);
+        (void)mbstowcs_s(NULL, (wchar_t*)chStr, (size_t)sizeof(buf), (const char*)buf, 32);
+
+        TextOut(hdc, 10, 280, (LPWSTR)chStr, sizeof(buf));
 
         ReleaseDC(hWnd, hdc);
     }
@@ -239,6 +253,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_DESTROY:
+        closesocket(s);
+        WSACleanup();
         PostQuitMessage(0);
         break;
     default:
