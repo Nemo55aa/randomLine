@@ -9,9 +9,16 @@
 #include "winsockWrp.h"
 
 
-// -------------- win32api define --------------
+// -------------- win32api --------------
+#include<stdio.h>
+#include <locale.h>
 // button id definition
 #define SEND_BUTTON_ID 1
+#define OPEN_BUTTON_ID 2
+#define SAVE_BUTTON_ID 3
+#define EDIT_ID 10
+
+void doingFileStuff(LPWSTR str);
 
 
 #define MAX_LOADSTRING 100
@@ -151,8 +158,13 @@ char buf[32];
 unsigned int    threadID;
 rcvDataStr		myrcvData;
 HANDLE rcvFncHd = 0;
+static HWND edit;
+LPWSTR strText;
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    setlocale(LC_ALL, "ja_JP");
+
     switch (message)
     {
     case WM_CREATE:
@@ -170,11 +182,38 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             L"BUTTON",
             L"send",
             WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-            10, 60, 100, 25,
+            10, 210, 100, 25,
             hWnd,
             (HMENU)SEND_BUTTON_ID,
             (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE),
             NULL);
+        CreateWindow(
+            L"BUTTON",
+            L"open",
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+            10, 240, 100, 25,
+            hWnd,
+            (HMENU)OPEN_BUTTON_ID,
+            (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE),
+            NULL);
+        CreateWindow(
+            L"BUTTON",
+            L"save",
+            WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+            110, 240, 100, 25,
+            hWnd,
+            (HMENU)SAVE_BUTTON_ID,
+            (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE),
+            NULL);
+
+        edit = CreateWindow(
+            TEXT("EDIT"), NULL,
+            WS_CHILD | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL |
+            ES_AUTOHSCROLL | ES_AUTOVSCROLL |
+            ES_LEFT | ES_MULTILINE,
+            0, 0, 400, 200, hWnd, (HMENU)EDIT_ID,
+            ((LPCREATESTRUCT)(lParam))->hInstance, NULL
+        );
         break;
     case WM_LBUTTONDOWN:
         {
@@ -194,7 +233,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             HDC hdc = GetDC(hWnd);
             CHAR chStr[128];
             wsprintf((LPWSTR)chStr, L"mouse at: %d, %d, \npressing: %d", LOWORD(lParam), HIWORD(lParam), isPressing);
-            TextOut(hdc, 10, 30, (LPWSTR)chStr, sizeof(chStr));
+            TextOut(hdc, 10, 430, (LPWSTR)chStr, sizeof(chStr));
 
             if (isPressing) {
                 drawDot(hdc, LOWORD(lParam), HIWORD(lParam));
@@ -208,15 +247,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         HDC hdc = GetDC(hWnd);
         CHAR chStr[128];
         
-        OnPaint(hdc, GetRandom(10, 1000), GetRandom(10, 1000), GetRandom(10, 1000), GetRandom(10, 1000));
+        //OnPaint(hdc, GetRandom(10, 1000), GetRandom(10, 1000), GetRandom(10, 1000), GetRandom(10, 1000));
         
         wsprintf((LPWSTR)chStr, L"timerCnt: %d", timerCnt++);
-        TextOut(hdc, 10, 250, (LPWSTR)chStr, sizeof(chStr));
+        TextOut(hdc, 10, 270, (LPWSTR)chStr, sizeof(chStr));
         
         //(void)wcstombs_s(NULL, (wchar_t*)chStr, (size_t)sizeof(buf), (const char*)buf, 32);
         (void)mbstowcs_s(NULL, (wchar_t*)chStr, (size_t)sizeof(buf), (const char*)buf, 32);
 
-        TextOut(hdc, 10, 280, (LPWSTR)chStr, sizeof(buf));
+        TextOut(hdc, 10, 290, (LPWSTR)chStr, sizeof(buf));
 
         ReleaseDC(hWnd, hdc);
     }
@@ -229,6 +268,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             {
             case SEND_BUTTON_ID:
                 send(s, "hoge", sizeof("hoge"), 0);
+                break;
+            case SAVE_BUTTON_ID:
+                strText = (LPWSTR)malloc(32767);
+                GetWindowText(edit, strText, 32767);
+                doingFileStuff(strText);
+                free(strText);
+
                 break;
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
@@ -246,7 +292,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
             // TODO: HDC を使用する描画コードをここに追加してください...
-            OnPaint(hdc, 10,100, 200,300); 
+            //OnPaint(hdc, 10,100, 200,300); 
             TextOut(hdc, 10, 200, L"hello", strlen("hello"));
 
             EndPaint(hWnd, &ps);
@@ -281,4 +327,18 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     }
     return (INT_PTR)FALSE;
+}
+
+
+void doingFileStuff(LPWSTR str) {
+    char string[100];
+    FILE* sfile;
+    _wfopen_s(&sfile, L"./test.txt", L"a");
+    if (sfile == NULL) {
+        fprintf(stderr, "cannot open %s\n", string);
+        exit(1);
+    }
+    //fprintf(sfile, L"%s\n", str);
+    fwprintf(sfile, L"%s\n", str);
+    fclose(sfile);
 }
